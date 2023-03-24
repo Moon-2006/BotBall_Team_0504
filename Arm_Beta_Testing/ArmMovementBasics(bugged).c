@@ -1,4 +1,11 @@
-//#include <kipr/wombat.h>
+/*
+------ READ ME!!! ----------- READ ME!!! ----------- READ ME!!! ----------- READ ME!!! ----------- READ ME!!! -----
+
+This code was written without a c compiler based on theoretical math that I (Owen Delwiche) did using chopsticks.
+Almost every function is broken, incomplete, or bugged. Please only use this file as a refrence for functions - copied functions will 100% not work. Thanks!
+
+*/
+#include <kipr/wombat.h>
 
 int main
 {
