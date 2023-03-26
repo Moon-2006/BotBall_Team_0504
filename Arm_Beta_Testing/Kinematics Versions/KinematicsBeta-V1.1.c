@@ -1,5 +1,5 @@
 #include <math.h>
-
+//NOTE: THIS CODE IS FOR AN ARDUINO UNO!! Written for my test setup at home- Uses different arm lenths and runs on an arduino, but the trig is the same
 
     // IMPORTANT ~ ~ ~
     int L = 25.5;
