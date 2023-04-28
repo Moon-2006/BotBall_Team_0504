@@ -1,4 +1,15 @@
 #include <kipr/wombat.h>
+/*
+* (0-15 sec) Collect/sort poms in front and to the right of start box.
+* (15-30 sec) Turn around and start driving to the left side of the field
+* (30-45 sec) Collect/sort poms on left side of the field
+* (45-60 sec) Deliver green poms to analysis lab
+* (60-75 sec) Back out of analysis lab and turn towards right side of field
+* (75-90 sec) Drive back across field
+* (90-105 sec) Deliver red poms to cybersecurity lab
+* (105-120 sec) Back up with 10 seconds extra time as buffer
+*/
+
 //port the pom sorter intake servo is in
 int pomPort = 2;
 //port the left drive motor is in
@@ -8,8 +19,7 @@ int rDrive = 1;
 //port the IR sensor for line following is in
 int ir = 0;
 
-//Initialize functions before they are called
-
+//Function prototypes:
 void intake(int preset);
 void move_servo(int pos, int port, int delay);
 //distance in cm
