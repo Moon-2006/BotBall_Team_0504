@@ -31,6 +31,8 @@ int main()
 {
     create_connect();  
     enable_servos();
+
+    //Positioning arm inside box and waiting for light trigger
     
     posH[0] = 500; //Vertical Base
     posH[1] = 2047; //Wrist
@@ -40,21 +42,20 @@ int main()
 	msleep(500);
     wait_for_light(0);
     shut_down_in(120);
-    dontDQ();
+    dontDQ(); //Moves arm to active position 
     
     
+    //Aligns with right edge tape of watch floor and waits for LegoBot to clear backup room
     fwd2tape();
     msleep(6000);
     
-    //Push rack-a-stack
-    //freePoints();
-    rail2tape();
+    rail2tape(); //Move to backup room
     
     driveCM(3, -50);
     
-    msleep(45000);
+    msleep(45000); //Wait for LegoBot to clear all poms
     
-    //mount far 2 drives
+    //Grab first drive
 	posH[0] = 1600; //Vertical Base
     posH[1] = 1000; //Wrist
     posH[2] = 1700;  // Claw
@@ -73,6 +74,8 @@ int main()
     posH[0] = 1500; //Vertical Base
     set_position(15, posH);
     
+
+    //Drop first drive
     driveCM(3, 50);
     trnL2tape();
     posH[3] = 1500; //Horizontal Base
@@ -91,8 +94,8 @@ int main()
     set_position(15, posH);
     
     turnRDeg(90, 50);
-    thing();
-    trnL2tape();
+    thing();  // Grab drive 2
+    trnL2tape(); // Drop drive 2
     posH[3] = 1400; //Horizontal Base
     set_position(15, posH);
     posH[0] = 500; //Vertical Base
@@ -103,6 +106,7 @@ int main()
     posH[0] = 1200; //Vertical Base
     set_position(15, posH);
     
+    //Reposition
     msleep(2000);
     turnRDeg(5, 20);
     fwd2tape();
@@ -111,8 +115,10 @@ int main()
     followTape(10, 75);
     create_stop();
     
+    //Grab final drive
     grab_drive();
     
+    //drop final drive
     posH[3] = 20; //Horizontal Base
     set_position(15, posH);
     posH[0] = 700; //Vertical Base
