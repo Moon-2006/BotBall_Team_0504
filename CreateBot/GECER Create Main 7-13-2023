@@ -1,0 +1,899 @@
+#include <kipr/wombat.h>
+#include <time.h>
+#include <stdio.h>
+//back switch port = digital 0
+
+int operations = 5; //The number of tower operations for NavMaster to complete (default should be 5, 4 if no botgal)
+//In the event of not grabbing botgal, make the 5th value in the nav cache the same as the 4th tower
+
+int slowSpeedF = 380;
+int fastSpeedF = 450;
+int slowSpeedR = 380;
+int fastSpeedR = 450;
+int clawAligned = 0;
+int anglCount = 0;
+
+
+
+int lastTower = 0;
+int towerCount = 0;
+float rM = 0;
+float lM = 0;
+
+void driveCM(int dist, int speed);    
+void rail2tower(int towerNum);
+void REVrail2tower(int towerNum);
+void railDist(int dist);
+void REVrailDist(int dist);
+void turnLDeg(int dist, int speed);
+void turnRDeg(int dist, int speed);
+void trnL2tape();
+void trnR2tape();
+void fwd2tape();
+void rev2tape();
+void followTape(int dist, int speed);
+void startingTurn();
+void squareWithRail();
+void wiggle();
+void NavMaster(int towerOrder[5]);
+void NavMasterTEST(int towerOrder[5]);
+void setBase();
+void setShortBase();
+void ShortTower();
+void HighTower();
+void set_position(int speed, int pos[4]);
+int sum(int array[]);
+float c(int port);
+void baseTower();
+void dropCube();
+void dropCubeL();
+void clawAlign();
+double totalTime();
+int t_Op;
+
+
+//Variables for arm movement
+
+//Servo ports
+int armServo = 0;
+int pitchServo = 1;
+int clawServo = 2;
+int baseMotor = 0;
+
+int baseANGL = 475;
+//int baseStartANGL = 200;
+
+//Arm angles
+int aShortTowerApproach = 1675;
+int aShortTowerAfter = 756;
+int aHighTower = 300;
+
+//Pitch angles
+int pBackHigh = 1150;
+int pHighTower = 1850;
+int pShortTower = 1600;
+int pShortTower2 = 1800;
+
+//Claw angles
+int clawOpen = 1200;
+int clawClose = 220;
+
+//Starting Angles
+int armStart = 0;
+int pitchStart = 0;
+int clawStart = 0;
+
+//Drop Angles
+int pDrop = 1490;
+int aDrop = 1300;
+int aDropShort = 1550;
+int storeANGL = 0; //amount the claw bounces back after setting the base
+int ShortStoreANGL =0;
+
+double sleepTime = 0;
+time_t start, stop;
+
+int main()
+{
+    create_connect();
+    enable_servos();
+    //create_full();
+    
+    
+    int capsule01[] = {800, 1500, clawOpen};
+    set_position(15, capsule01);
+    setBase();   
+    
+    printf("1\n");
+    int posCapsuleStart[] = {1900, 1400, 670};
+    set_position(15, posCapsuleStart); 
+    posCapsuleStart[1] = 1800;
+    set_position(15, posCapsuleStart);
+    
+    msleep(100);
+    wait_for_light(3);
+    start = time(NULL);
+    shut_down_in(120);
+    
+    printf("2\n");
+	posCapsuleStart[1] = 1400;
+    set_position(15, posCapsuleStart); 
+    int capsule02[] = {1000, 1500, clawOpen};
+    set_position(15, capsule02);
+    capsule02[2] = clawClose;
+    set_position(15, capsule02);
+    
+    printf("3\n");
+
+    
+    
+    
+    fwd2tape();
+    msleep(100);
+    sleepTime += 0.1;
+    while(get_create_lbump()==0 && get_create_rbump()==0)
+    {
+        create_drive_direct(220, 200);
+    }
+    create_drive_direct(-200,-200);
+    msleep(50);
+    sleepTime += 0.05;
+    create_stop();
+    msleep(100);
+    sleepTime += 0.1;
+    startingTurn();
+    msleep(100);
+    sleepTime += 0.1;
+    create_stop();
+    
+    create_drive_direct(-200,-200);
+    msleep(470);
+    sleepTime += 0.47;
+    
+    create_stop();
+    msleep(1000);
+    sleepTime += 1;
+    //End of alignment code
+    
+
+    int NavCache[5] = {4, 4, 2, 1, 5};
+    NavMaster(NavCache);
+    
+    create_stop();
+    while(totalTime() < 110){
+        msleep(500);
+        sleepTime += 0.5;
+        printf("Waiting: %f sec\n", totalTime());
+   	}
+    
+    REVrailDist(30);
+    
+	turnLDeg(90, 150);
+    rev2tape();
+    
+    turnRDeg(30, 150);
+    setBase();
+    set_servo_position(2, clawOpen);
+    msleep(100);
+    sleepTime += 0.1;
+    
+    mav(1, -1000); //opens cube chute
+    msleep(500);
+    sleepTime += 0.5;
+    ao();
+    
+    
+    disable_servos();
+    create_disconnect();
+    return 0;
+}
+
+void baseTower()
+{
+    cmpc(0);
+    while(gmpc(0) < baseANGL)
+    {
+        mav(0, 300);
+    }
+    ao();
+    freeze(0);
+}
+
+/*
+void baseStart()
+{
+    cmpc(0);
+    while(gmpc(0) < baseStartANGL)
+    {
+        mav(0, 300);
+    }
+    ao();
+}
+*/
+
+void setBase(){
+    printf("Setting Base\n");
+    while(digital(2) == 0){
+        mav(0, -300);
+    }
+    cmpc(0);
+    ao();
+    freeze(0);
+}
+
+void setShortBase(){
+    printf("Setting Base\n");
+    while(digital(2) == 0){
+        mav(0, -300);
+    }
+    cmpc(0);
+    ao();
+}
+
+
+void ShortTower()
+{
+    baseTower();
+    int posCapsule[] = {aShortTowerApproach, pShortTower, clawOpen};
+    set_position(15, posCapsule);
+    
+    posCapsule[1] = pShortTower2;
+    set_position(15, posCapsule);
+    
+    posCapsule[2] = clawClose;
+    set_position(15, posCapsule);
+    
+    posCapsule[1] = pShortTower;
+    set_position(15, posCapsule);
+    
+    posCapsule[0] = aShortTowerAfter;
+    posCapsule[1] = pShortTower;
+    set_position(15, posCapsule);
+    
+    dropCubeL();
+
+}
+
+void HighTower()
+{
+    int posCapsule[] = {aHighTower, pBackHigh, clawOpen};
+    set_position(15, posCapsule);
+    baseTower();
+    
+    msleep(500);
+    sleepTime += 0.5;
+    posCapsule[1] = pHighTower;
+    set_position(15, posCapsule);
+    posCapsule[2] = clawClose;
+    set_position(15, posCapsule);
+    
+    msleep(500);
+   	sleepTime += 0.5;
+    //Moves to avoid cube hitting tower
+    posCapsule[0] = posCapsule[0] - 10;
+    posCapsule[1] = posCapsule[1] - 100;
+    set_position(15, posCapsule);
+    
+    dropCube();
+}
+
+void dropCube()
+{
+    int posCapsule[] = {c(0), 1300, c(2)};
+    set_position(15, posCapsule);
+    
+
+    setBase();
+    
+    posCapsule[0] = aDrop;
+    posCapsule[1] = pDrop;
+    set_position(15, posCapsule);
+    msleep(100);
+    sleepTime += 0.1;
+    //posCapsule[1] = pDrop + 45;
+    posCapsule[0] = aDrop + 100;
+    set_position(15, posCapsule);
+    msleep(100);
+    sleepTime += 0.1;
+    if(lastTower == 0){
+    posCapsule[2] = clawOpen;
+    set_position(15, posCapsule);
+    }
+    if(lastTower == 1){
+    	posCapsule[1] = posCapsule[1] + 50;
+    	set_position(15, posCapsule);
+    } else {
+        msleep(500);
+        posCapsule[2] = 624;
+        set_position(15, posCapsule);
+    }
+        
+}
+
+void dropCubeL()
+{
+    int posCapsule[] = {c(0), 1300, c(2)};
+    set_position(15, posCapsule);
+    
+
+    setShortBase();
+    
+    posCapsule[0] = aDropShort;
+    posCapsule[1] = pDrop;
+    set_position(15, posCapsule);
+    msleep(100);
+    sleepTime += 0.1;
+    if(lastTower == 0){
+        posCapsule[2] = clawOpen;
+        set_position(15, posCapsule);
+    }
+    if(lastTower == 1){
+    	posCapsule[1] = posCapsule[1] + 50;
+    	set_position(15, posCapsule);
+    } else {
+        msleep(500);
+        posCapsule[2] = 624;
+        set_position(15, posCapsule);
+    }
+}
+
+void rail2tower(int towerNum)
+{
+    int towerCount = 0;
+    
+    if(analog(0)>2000 && analog(1)>2000){
+    railDist(20);
+    printf("leaving tower\n");
+    }
+    
+    while(towerCount < towerNum)
+    {
+    while(analog(0)<2000 || analog(1)<2000)
+    {
+        if(get_create_lbump()==1){
+            create_drive_direct(350, 275);
+        }
+        
+        if(get_create_rbump()==0 && get_create_lbump()==0){
+        	create_drive_direct(300 , 375);
+            msleep(10);
+            sleepTime += 0.01;
+        }
+    }
+    towerCount = towerCount + 1;
+    printf("aligning at tower, added one to count\n");
+    //railDist(2);
+    
+    if(towerCount < towerNum && t_Op < 4){
+    railDist(20);
+    printf("passed tower\n");
+    }
+    }
+    
+    printf("done\n");
+    create_stop();
+}
+void railDist(int dist){
+    set_create_distance(0);
+    while(abs(get_create_distance())<(dist * 10))
+    {        
+        if(get_create_lbump()==1){
+            create_drive_direct(125,-60);
+            msleep(10);
+            sleepTime += 0.01;
+        }
+        if(get_create_rbump()==1){
+            create_drive_direct(170, 300);
+            msleep(10);
+            sleepTime += 0.01;
+        }
+        
+        if(get_create_rbump()==0 && get_create_lbump()==0){
+        create_drive_direct(275 , 350);
+        msleep(10);
+        sleepTime += 0.01;
+        }
+    }
+}
+
+void REVrail2tower(int towerNum)
+{
+    int towerCount = 0;
+    
+    if(analog(0)>2000 && analog(1)>2000){
+    REVrailDist(20);
+    printf("leaving current tower\n");
+    }
+    
+    while(towerCount < towerNum)
+    {
+    while(analog(0)<2000 || analog(1)<2000)
+    {
+        if(digital(0) == 0){
+            create_drive_direct(-290, -310);
+            msleep(10);
+            sleepTime += 0.01;
+        }
+        if(digital(0) ==1){
+            create_drive_direct(-390, -210);
+            msleep(100);
+            sleepTime += 0.1;
+        }
+    }
+        
+    towerCount = towerCount + 1;
+    printf("aligning at tower, added one to count\n");
+    //REVrailDist(2);
+    
+    if(towerCount < towerNum){
+    REVrailDist(20);
+    printf("passed tower\n");
+    }  
+    }
+    
+    printf("done\n");
+    create_stop();
+}
+
+
+void REVrailDist(int dist){
+    set_create_distance(0);
+    while(abs(get_create_distance())<(dist * 10))
+    {        
+        if(digital(0) == 0){
+            create_drive_direct(-290, -330);
+            msleep(10);
+            sleepTime += 0.01;
+        }
+        if(digital(0) ==1){
+            create_drive_direct(-400, -290);
+            msleep(75);
+            sleepTime += 0.075;
+        }
+    }
+}
+
+
+void turnLDeg(int dist, int speed){
+    set_create_total_angle(0);
+    while(get_create_total_angle() < dist)
+    {
+        create_drive_direct(-speed, speed);
+        msleep(10);
+        sleepTime += 0.01;
+        /*
+        printf("driving\n");
+        printf("dist: %d\n", dist);
+        printf("dist: %d\n", (dist - get_create_distance()));
+        */
+    }
+    create_stop();
+}
+
+void turnRDeg(int dist, int speed)
+{
+    set_create_total_angle(0);
+    while(abs(get_create_total_angle()) < abs(dist))
+    {
+        create_drive_direct(speed, -speed);
+        msleep(10);
+        sleepTime += 0.01;
+        /*
+        printf("driving\n");
+        printf("dist: %d\n", dist);
+        printf("dist: %d\n", (dist - get_create_distance()));
+        */
+    }
+    create_stop();
+
+}
+
+void fwd2tape()
+{
+    while(get_create_lcliff_amt()>2000 && get_create_rcliff_amt()>2000)
+    {
+        create_drive_direct(350 , 350);
+        if(get_create_lbump()==1){
+            create_drive_direct(150, 90);
+            msleep(20);
+            sleepTime += 0.02;
+        }
+        if(get_create_rbump()==1){
+            create_drive_direct(90, 150);
+            msleep(20);
+            sleepTime += 0.02;
+        }
+    }
+    while(get_create_lcliff_amt()>2000 || get_create_rcliff_amt()>2000)
+    {
+        rM = -0.1;
+        lM = -0.1;
+        if(get_create_rcliff_amt()>2000)
+        {
+            rM = 1;
+        }
+        if(get_create_lcliff_amt()>2000)
+        {
+            lM = 1;
+        }
+        create_drive_direct((200 * lM), (200 * rM));
+        msleep(10);
+        sleepTime += 0.01;
+    }
+    driveCM(7, 100);
+}
+
+void rev2tape()
+{
+    while(get_create_lcliff_amt()>2000 && get_create_rcliff_amt()>2000)
+    {
+        create_drive_direct(-350 , -350);
+        if(get_create_lbump()==1){
+            create_drive_direct(150, 90);
+            msleep(20);
+            sleepTime += 0.02;
+        }
+        if(get_create_rbump()==1){
+            create_drive_direct(90, 150);
+            msleep(20);
+            sleepTime += 0.02;
+        }
+    }
+    
+    
+    
+    
+    while(get_create_lcliff_amt()>2000 || get_create_rcliff_amt()>2000)
+    {
+        rM = -0.1;
+        lM = -0.1;
+        if(get_create_rcliff_amt()>2000)
+        {
+            rM = -1;
+        }
+        if(get_create_lcliff_amt()>2000)
+        {
+            lM = -1;
+        }
+        create_drive_direct((200 * lM), (200 * rM));
+        msleep(10);
+        sleepTime += 0.01;
+    }
+    create_stop();
+}
+
+void revRail2tape()
+{
+     
+    while(get_create_rcliff_amt()>2000)
+    {
+        if(digital(0) == 0){
+            create_drive_direct(-290, -310);
+            msleep(10);
+            sleepTime += 0.01;
+        }
+        if(digital(0) ==1){
+            create_drive_direct(-390, -210);
+            msleep(100);
+            sleepTime += 0.1;
+        }
+    }
+    create_stop();
+}
+
+void Rail2tape()
+{
+     
+    while(get_create_rcliff_amt()>2000)
+    {
+        if(get_create_lbump()==1){
+            create_drive_direct(350, 275);
+        }
+        
+        if(get_create_rbump()==0 && get_create_lbump()==0){
+        	create_drive_direct(300 , 375);
+            msleep(10);
+            sleepTime += 0.01;
+        }
+    }
+    create_stop();
+}
+
+void followTape(int dist, int speed){
+    set_create_distance(0);
+    dist = dist * 10;
+    while(get_create_distance() < dist)
+    {
+        if(get_create_rfcliff_amt()>2000 && get_create_lfcliff_amt()>2000)
+        {
+            rM = 1;
+            lM = 1;
+        }else{
+        if(get_create_rfcliff_amt()>2000)
+        {
+            rM = 1;
+            lM = 0.8;
+        }
+        if(get_create_lfcliff_amt()>2000)
+        {
+            lM = 1;
+            rM = 0.8;
+        }
+        }
+        create_drive_direct((speed * lM), (speed * rM));
+        msleep(10);
+        sleepTime += 0.01;
+    }
+    create_stop();
+}
+
+void driveCM(int dist, int speed){
+    set_create_distance(0);
+    dist = (dist * 1) * 10;
+    while(abs(get_create_distance()) < dist)
+    {
+        create_drive_direct(speed, speed);
+        msleep(10);
+        sleepTime += 0.01;
+        /*
+        printf("driving\n");
+        printf("dist: %d\n", dist);
+        printf("dist: %d\n", (dist - get_create_distance()));
+        */
+    }
+    create_stop();
+}
+
+void trnL2tape()
+{
+    create_drive_direct(-100, 100);
+    msleep(500);
+    sleepTime += 0.5;
+    while(get_create_rfcliff_amt()>2000)
+    {
+        create_drive_direct(-100, 100);
+        printf("sensor reads %d\n", get_create_lfcliff_amt());
+        msleep(10);
+        sleepTime += 0.01;
+    }
+    set_create_total_angle(0);
+    while(get_create_lfcliff_amt()>2000)
+    {
+        create_drive_direct(100, -100);
+        printf("sensor reads %d\n", get_create_rfcliff_amt());
+        msleep(10);
+        sleepTime += 0.01;
+        anglCount ++;
+    }
+    turnLDeg((anglCount/2), 100);
+    create_stop();
+}
+void trnR2tape()
+{
+    create_drive_direct(100, -100);
+    msleep(500);
+    sleepTime += 0.5;
+    while(get_create_lfcliff_amt()>2000)
+    {
+        create_drive_direct(100, -100);
+        printf("sensor reads %d\n", get_create_lfcliff_amt());
+        msleep(10);
+        sleepTime += 0.01;
+    }
+    set_create_total_angle(0);
+    while(get_create_rfcliff_amt()>2000)
+    {
+        create_drive_direct(-100, 100);
+        printf("sensor reads %d\n", get_create_lfcliff_amt());
+        msleep(10);
+        sleepTime += 0.01;
+        anglCount ++;
+    }
+    turnRDeg((anglCount/2), 100);
+    create_stop();
+}
+
+
+void startingTurn(){
+        while(digital(0) == 0){
+            create_drive_direct(150, -150);
+            msleep(15);
+            sleepTime += 0.015;
+        }
+    turnLDeg(7, 100);
+    create_stop();    
+}
+
+void squareWithRail(){
+    while(digital(0) == 0){
+        create_drive_direct(100, -100);
+    }
+    while(digital(0) == 1){
+        create_drive_direct(-100, 100);
+        msleep(300);
+        sleepTime += 0.3;
+    }
+    create_stop();
+    msleep(50);
+    sleepTime += 0.05;
+}
+
+void wiggle(){
+    squareWithRail();
+    squareWithRail();
+}
+
+void NavMaster(int towerOrder[5]){
+    printf("Starting NavMaster: %f sec\n", totalTime());
+    int t_Op = 0; //Tower Operation (how many towers the program has visited so far)
+    int N_towerDist = 0; //Next tower distance (distance to the next tower from the current tower, measured in towers)
+    rail2tower(towerOrder[t_Op]);
+    clawAlign();
+    squareWithRail();
+        if(towerOrder[t_Op] == 1 || towerOrder[t_Op] == 5){
+            ShortTower();
+        }
+        else{
+            HighTower();
+        }
+    rail2tower(1);
+    t_Op++;
+    printf("Tower One: %f sec\n", totalTime());
+    //msleep(1000); maybe delete
+    
+    while(t_Op <= (operations - 1) ){
+        if(t_Op == 4){
+            lastTower = 1;
+        }
+        printf("Continuing - %f sec \n", totalTime());
+        N_towerDist = towerOrder[t_Op] - towerOrder[(t_Op - 1)];
+        printf("-----------\nN_towerDist:%d\nTower Operation:%d\n-----------\n", N_towerDist, t_Op);
+            if(N_towerDist > 0){
+                rail2tower(N_towerDist);
+                msleep(500); //placeholder??
+                sleepTime += 0.5;
+                clawAlign();
+                squareWithRail();
+                if(towerOrder[t_Op] == 1 || towerOrder[t_Op] == 5){
+                    ShortTower();
+                }
+                else{
+                    HighTower();
+                }
+    			rail2tower(1);
+				t_Op++;
+            }    
+            if(N_towerDist < 0){
+                REVrail2tower(abs(N_towerDist));
+                msleep(500); //placeholder??
+                sleepTime += 0.5;
+                clawAlign();
+                squareWithRail();
+                if(towerOrder[t_Op] == 1 || towerOrder[t_Op] == 5){
+                    ShortTower();
+                }
+                else{
+                    HighTower();
+                }
+    			rail2tower(1);
+				t_Op++;
+            }
+			if(N_towerDist == 0){
+                printf("Mannn wtf you doin?? Im already there bro.\n");
+                t_Op++;
+            }
+        //Msleep Perhaps? was msleep(1000);
+    
+    }
+    int deltaCenter = 2 - towerOrder[t_Op - 1];
+    if(N_towerDist < 0){
+                Rail2tape();   //Dont ask it works
+    }
+    if(N_towerDist > 0){
+                revRail2tape();
+    }
+    
+}
+void NavMasterTEST(int towerOrder[5]){
+    printf("Starting NavMaster\n");
+    t_Op = 0; //Tower Operation (how many towers the program has visited so far)
+    int N_towerDist = 0; //Next tower distance (distance to the next tower from the current tower, measured in towers)    
+    t_Op++;
+    squareWithRail();
+    msleep(1000);
+    sleepTime += 1;
+    while(t_Op <= (operations-1) ){
+        printf("Continuing - ");
+        N_towerDist = towerOrder[t_Op] - towerOrder[(t_Op - 1)];
+        printf("-----------\nN_towerDist:%d\nTower Operation:%d\n-----------\n", N_towerDist, t_Op);
+            if(N_towerDist > 0){
+                rail2tower(N_towerDist);
+                t_Op++;
+                squareWithRail();
+            }    
+            if(N_towerDist < 0){
+                REVrail2tower(abs(N_towerDist));
+                t_Op++;
+				squareWithRail();
+            }
+			if(N_towerDist == 0){
+                printf("Mannn wtf you doin?? Im already there bro.\n");
+                t_Op++;
+            }
+		msleep(1000);
+        sleepTime += 1;
+    }
+    REVrail2tower(3);
+}
+
+
+
+
+
+//Servos  ---___-9 -_ -072344(*()&*_+_)_))_+_()!_+~(!(_)@$?_)+$>? ___-------------------------SERVOS ---- !! _ _ -1 -) E-21=EE8-239-0
+
+void set_position(int speed, int pos[3])
+{
+    int delta[3] = {(pos[0] - get_servo_position(0)),(pos[1] - get_servo_position(1)),(pos[2] - get_servo_position(2))};
+    int posCompletion[3] = {0, 0, 0};
+    while(sum(posCompletion) < 3)
+    {
+        int port = 0;
+        while(port < 3)
+        {
+            if(delta[port] > speed){
+                set_servo_position(port, get_servo_position(port)+speed);
+            }
+            if(delta[port] < -speed){
+                set_servo_position(port, get_servo_position(port)-speed);
+            }
+            if(abs(delta[port]) <= speed){
+                set_servo_position(port, pos[port]);
+                posCompletion[port] = 1;
+                //printf("completed port - %d\n", port);
+            }
+            delta[port] = (pos[port] - get_servo_position(port));
+            port++;
+            msleep(5);
+        }
+    }
+}
+
+float c(int port)
+{
+    return get_servo_position(port);
+}
+
+int sum(int array[])
+{
+    int i = 0;
+    int result = 0;
+    while(i < 3)
+    {
+        result = result + (array[i]);
+        i = i + 1;
+    }
+    return result;
+}
+
+void clawAlign(){
+    //set_create_distance(0);
+    squareWithRail();
+    msleep(120);
+    while(analog(0) > 2000){
+        //REVrailDist(1);
+        create_drive_direct(-125,-125);
+        msleep(20);
+    }
+    //create_drive_direct(-150,-150);
+    //msleep(180);
+    //clawAligned = get_create_distance();
+    create_stop();
+    msleep(80);
+}
+
+//how much time has passed in seconds since the round started
+double totalTime(){
+    stop = time(NULL);
+	return difftime(stop, start);
+}
