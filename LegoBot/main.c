@@ -420,7 +420,7 @@ void line(double distance, int speed){
     clear_motor_position_counter(lDrive);
     while(abs(get_motor_position_counter(lDrive)) < distance*90.90909){
         if(analog(ir) < 1000){
-			mav(lDrive, speed/**1.045*//4);
+			mav(lDrive, speed/4);
             mav(rDrive, speed);
             if(armFreeze == 1){
                 freeze(armPort);
@@ -429,7 +429,7 @@ void line(double distance, int speed){
             
         }
         if(analog(ir) >= 1000){
-        	mav(lDrive, speed/**1.045*/);
+        	mav(lDrive, speed);
             mav(rDrive, speed/4);
             if(armFreeze == 1){
                 freeze(armPort);
