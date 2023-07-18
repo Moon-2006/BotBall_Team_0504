@@ -50,6 +50,7 @@ void dropCubeL();
 void clawAlign();
 double totalTime();
 int t_Op;
+void encryptionKey(int tower);
 
 
 //Variables for arm movement
@@ -59,6 +60,7 @@ int armServo = 0;
 int pitchServo = 1;
 int clawServo = 2;
 int baseMotor = 0;
+int keyArmServo = 3;
 
 int baseANGL = 475;
 //int baseStartANGL = 200;
@@ -730,6 +732,7 @@ void NavMaster(int towerOrder[5]){
     rail2tower(towerOrder[t_Op]);
     clawAlign();
     squareWithRail();
+	encryptionKey(towerOrder[t_Op]);
         if(towerOrder[t_Op] == 1 || towerOrder[t_Op] == 5){
             ShortTower();
         }
@@ -890,6 +893,21 @@ void clawAlign(){
     //clawAligned = get_create_distance();
     create_stop();
     msleep(80);
+}
+
+void encryptionKey(int tower){
+	//low
+	if(tower == 5){
+		set_servo_position(keyArmServo, 0);
+	}
+	//medium
+	else if(tower == 1 || tower == 4){
+
+	}
+	//high
+	else if(tower == 2 || tower == 3){
+
+	}
 }
 
 //how much time has passed in seconds since the round started
